@@ -64,9 +64,9 @@ class PongAgent:
             self.env.render()
         self.env.close()
 
-    def train(self, episodes, ckpt_dir, logs_dir):
+    def train(self, episodes, ckpt_dir, log_dir):
         model, optimizer, lossfn, ckpt, ckpt_manager = self._init(ckpt_dir)
-        summary_writer = tf.summary.create_file_writer(logs_dir)
+        summary_writer = tf.summary.create_file_writer(log_dir)
         with tqdm(total=episodes, desc="Episode", unit="episode") as pbar:
             pbar.update(ckpt.step.numpy())
             for _ in range(episodes - ckpt.step.numpy()):
@@ -139,17 +139,19 @@ class PongAgent:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=["train", "test"], required=True)
+    parser.add_argument('--mode', choices=["train", "test"], required=True, help="Train or test the agent?")
+    parser.add_argument('--ckpt_dir', required=True, help="Name of checkpoint directory")
+    parser.add_argument('--log_dir', required=True, help="Name of log directory")
     args = parser.parse_args()
 
     BASE_DIR = os.path.dirname(__file__)
-    CKPT_DIR = os.path.join(BASE_DIR, "checkpoints")
-    LOGS_DIR = os.path.join(BASE_DIR, "logs")
+    CKPT_DIR = os.path.join(BASE_DIR, args.ckpt_dir)
+    LOG_DIR = os.path.join(BASE_DIR, args.log_dir)
 
-    agent = PongAgent(0.1, 0.99)
+    agent = PongAgent(alpha=0.1, gamma=0.99)
 
     if args.mode == "train":
-        agent.train(10000, CKPT_DIR, LOGS_DIR)
+        agent.train(10000, CKPT_DIR, LOG_DIR)
 
     if args.mode == "test":
         agent.test(CKPT_DIR)
