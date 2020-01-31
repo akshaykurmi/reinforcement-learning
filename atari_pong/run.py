@@ -4,7 +4,6 @@ from time import sleep
 
 import gym
 import numpy as np
-from scipy.special import softmax
 import tensorflow as tf
 from tqdm import tqdm
 
@@ -20,7 +19,7 @@ class PolicyNetwork(tf.keras.Model):
         self.pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
         self.flatten = tf.keras.layers.Flatten()
         self.dense1 = tf.keras.layers.Dense(units=128, activation="relu")
-        self.dense2 = tf.keras.layers.Dense(units=output_size, activation="linear")
+        self.dense2 = tf.keras.layers.Dense(units=output_size, activation="softmax")
 
     def call(self, inputs):
         x = self.conv1(inputs)
@@ -32,7 +31,7 @@ class PolicyNetwork(tf.keras.Model):
         return self.dense2(x)
 
 
-class PongAgent:
+class Agent:
     def __init__(self, learning_rate, discount_factor):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
@@ -82,17 +81,13 @@ class PongAgent:
     @tf.function(experimental_relax_shapes=True)
     def _train_step(self, states, actions, discounted_rewards, model, optimizer):
         with tf.GradientTape() as tape:
-            action_logits = model(states)
-            loss = self._calculate_loss(actions, action_logits, discounted_rewards)
+            action_probs = model(states)
+            log_likelihood = tf.math.log(tf.gather_nd(action_probs, actions))
+            weighted_log_likelihood = tf.multiply(log_likelihood, discounted_rewards)
+            loss = tf.reduce_sum(weighted_log_likelihood)
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         return loss
-
-    @tf.function(experimental_relax_shapes=True)
-    def _calculate_loss(self, actions, action_logits, discounted_rewards):
-        negative_likelihoods = tf.nn.softmax_cross_entropy_with_logits(labels=actions, logits=action_logits)
-        weighted_negative_likelihoods = tf.multiply(negative_likelihoods, discounted_rewards)
-        return tf.reduce_mean(weighted_negative_likelihoods)
 
     def _sample_episode(self, model):
         states, actions, rewards = [], [], []
@@ -103,18 +98,17 @@ class PongAgent:
         while not done:
             state = np.dstack((state, self._preprocess_frame(observation)))
             state = state[:, :, 1:]
-            action_logits = model(state.reshape((1, 160, 160, 4))).numpy().flatten()
-            sampled_action = np.random.choice(self.env.action_space.n, p=softmax(action_logits))
-            action = np.zeros(self.env.action_space.n)
-            action[sampled_action] = 1
-            observation, reward, done, _ = self.env.step(sampled_action)
+            action_probs = model(state.reshape((1, 160, 160, 4))).numpy().flatten()
+            action = np.random.choice(self.env.action_space.n, p=action_probs)
+            observation, reward, done, _ = self.env.step(action)
             states.append(state)
             actions.append(action)
             rewards.append(reward)
             episode_reward += reward
         self.env.close()
-        return np.array(states, dtype=np.float32), np.array(actions, dtype=np.float32), \
-               np.vstack(self._discount_rewards(rewards)).astype(dtype=np.float32), episode_reward
+        return np.array(states, dtype=np.float32), \
+               np.array(list(enumerate(actions)), dtype=np.int32), \
+               np.array(self._discount_rewards(rewards)).astype(dtype=np.float32), episode_reward
 
     @staticmethod
     def _preprocess_frame(frame):
@@ -151,7 +145,7 @@ if __name__ == "__main__":
     CKPT_DIR = os.path.join(BASE_DIR, args.ckpt_dir)
     LOG_DIR = os.path.join(BASE_DIR, args.log_dir)
 
-    agent = PongAgent(learning_rate=0.001, discount_factor=0.99)
+    agent = Agent(learning_rate=3e-4, discount_factor=0.99)
 
     if args.mode == "train":
         agent.train(10000, CKPT_DIR, LOG_DIR)
