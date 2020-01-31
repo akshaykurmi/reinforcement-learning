@@ -4,6 +4,7 @@ from time import sleep
 
 import gym
 import numpy as np
+from scipy.special import softmax
 import tensorflow as tf
 from tqdm import tqdm
 
@@ -19,7 +20,7 @@ class PolicyNetwork(tf.keras.Model):
         self.pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
         self.flatten = tf.keras.layers.Flatten()
         self.dense1 = tf.keras.layers.Dense(units=128, activation="relu")
-        self.dense2 = tf.keras.layers.Dense(units=output_size, activation="softmax")
+        self.dense2 = tf.keras.layers.Dense(units=output_size, activation="linear")
 
     def call(self, inputs):
         x = self.conv1(inputs)
@@ -32,20 +33,19 @@ class PolicyNetwork(tf.keras.Model):
 
 
 class PongAgent:
-    def __init__(self, alpha, gamma):
-        self.alpha = alpha
-        self.gamma = gamma
+    def __init__(self, learning_rate, discount_factor):
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
         self.env = gym.make("Pong-v0")
 
     def _init(self, ckpt_dir):
         model = PolicyNetwork(self.env.action_space.n)
-        optimizer = tf.keras.optimizers.Adam()
-        lossfn = tf.keras.losses.CategoricalCrossentropy()
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         step = tf.Variable(0, dtype=tf.int64)
         ckpt = tf.train.Checkpoint(model=model, optimizer=optimizer, step=step)
         ckpt_manager = tf.train.CheckpointManager(ckpt, ckpt_dir, max_to_keep=1, keep_checkpoint_every_n_hours=1)
         ckpt.restore(ckpt_manager.latest_checkpoint)
-        return model, optimizer, lossfn, ckpt, ckpt_manager
+        return model, optimizer, ckpt, ckpt_manager
 
     def test(self, ckpt_dir):
         model, _, _, _, _ = self._init(ckpt_dir)
@@ -65,13 +65,13 @@ class PongAgent:
         self.env.close()
 
     def train(self, episodes, ckpt_dir, log_dir):
-        model, optimizer, lossfn, ckpt, ckpt_manager = self._init(ckpt_dir)
+        model, optimizer, ckpt, ckpt_manager = self._init(ckpt_dir)
         summary_writer = tf.summary.create_file_writer(log_dir)
         with tqdm(total=episodes, desc="Episode", unit="episode") as pbar:
             pbar.update(ckpt.step.numpy())
             for _ in range(episodes - ckpt.step.numpy()):
-                X, y, episode_reward = self._sample_episode(model)
-                loss = self._train_step(X, y, model, optimizer, lossfn)
+                states, actions, discounted_rewards, episode_reward = self._sample_episode(model)
+                loss = self._train_step(states, actions, discounted_rewards, model, optimizer)
                 ckpt_manager.save()
                 with summary_writer.as_default():
                     tf.summary.scalar("reward", episode_reward, step=ckpt.step)
@@ -80,16 +80,22 @@ class PongAgent:
                 pbar.update(1)
 
     @tf.function(experimental_relax_shapes=True)
-    def _train_step(self, X, y, model, optimizer, lossfn):
+    def _train_step(self, states, actions, discounted_rewards, model, optimizer):
         with tf.GradientTape() as tape:
-            y_pred = model(X)
-            loss = lossfn(y, y_pred)
+            action_logits = model(states)
+            loss = self._calculate_loss(actions, action_logits, discounted_rewards)
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         return loss
 
+    @tf.function(experimental_relax_shapes=True)
+    def _calculate_loss(self, actions, action_logits, discounted_rewards):
+        negative_likelihoods = tf.nn.softmax_cross_entropy_with_logits(labels=actions, logits=action_logits)
+        weighted_negative_likelihoods = tf.multiply(negative_likelihoods, discounted_rewards)
+        return tf.reduce_mean(weighted_negative_likelihoods)
+
     def _sample_episode(self, model):
-        states, rewards, action_probs, action_prob_grads = [], [], [], []
+        states, actions, rewards = [], [], []
         observation = self.env.reset()
         done = False
         episode_reward = 0
@@ -97,21 +103,18 @@ class PongAgent:
         while not done:
             state = np.dstack((state, self._preprocess_frame(observation)))
             state = state[:, :, 1:]
-            predictions = model.predict_on_batch(state.reshape((1, 160, 160, 4)))[0, :].numpy()
-            predictions /= np.sum(predictions)
-            sampled_action = np.random.choice(self.env.action_space.n, p=predictions)
+            action_logits = model(state.reshape((1, 160, 160, 4))).numpy().flatten()
+            sampled_action = np.random.choice(self.env.action_space.n, p=softmax(action_logits))
             action = np.zeros(self.env.action_space.n)
             action[sampled_action] = 1
-            observation, reward, done, info = self.env.step(sampled_action)
+            observation, reward, done, _ = self.env.step(sampled_action)
             states.append(state)
+            actions.append(action)
             rewards.append(reward)
-            action_probs.append(predictions)
-            action_prob_grads.append(action - predictions)
             episode_reward += reward
         self.env.close()
-        y = np.vstack(action_probs) + self.alpha * (
-                np.vstack(self._discount_rewards(rewards)) * np.vstack(action_prob_grads))
-        return np.array(states), y, episode_reward
+        return np.array(states, dtype=np.float32), np.array(actions, dtype=np.float32), \
+               np.vstack(self._discount_rewards(rewards)).astype(dtype=np.float32), episode_reward
 
     @staticmethod
     def _preprocess_frame(frame):
@@ -129,7 +132,7 @@ class PongAgent:
             if r != 0:
                 current_reward = r
                 exponent = 0
-            discounted.append(current_reward * (self.gamma ** exponent))
+            discounted.append(current_reward * (self.discount_factor ** exponent))
             exponent += 1
         discounted = list(reversed(discounted))
         discounted -= np.mean(discounted)
@@ -148,7 +151,7 @@ if __name__ == "__main__":
     CKPT_DIR = os.path.join(BASE_DIR, args.ckpt_dir)
     LOG_DIR = os.path.join(BASE_DIR, args.log_dir)
 
-    agent = PongAgent(alpha=0.1, gamma=0.99)
+    agent = PongAgent(learning_rate=0.001, discount_factor=0.99)
 
     if args.mode == "train":
         agent.train(10000, CKPT_DIR, LOG_DIR)
