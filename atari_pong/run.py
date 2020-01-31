@@ -82,9 +82,9 @@ class Agent:
     def _train_step(self, states, actions, discounted_rewards, model, optimizer):
         with tf.GradientTape() as tape:
             action_probs = model(states)
-            log_likelihood = tf.math.log(tf.gather_nd(action_probs, actions))
-            weighted_log_likelihood = tf.multiply(log_likelihood, discounted_rewards)
-            loss = tf.reduce_sum(weighted_log_likelihood)
+            negative_log_likelihood = tf.math.negative(tf.math.log(tf.gather_nd(action_probs, actions)))
+            weighted_negative_log_likelihood = tf.multiply(negative_log_likelihood, discounted_rewards)
+            loss = tf.reduce_sum(weighted_negative_log_likelihood)
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         return loss
