@@ -31,6 +31,17 @@ class PolicyNetwork(tf.keras.Model):
         return self.dense2(x)
 
 
+def generate_batches(batch_size, arrays):
+    n_elements = arrays[0].shape[0]
+    num_batches = n_elements // batch_size
+    if n_elements % batch_size != 0:
+        num_batches += 1
+    for batch in range(num_batches):
+        start = batch * batch_size
+        end = start + batch_size
+        yield (a[start:end] for a in arrays)
+
+
 class Agent:
     def __init__(self, learning_rate, discount_factor):
         self.learning_rate = learning_rate
@@ -63,18 +74,20 @@ class Agent:
             self.env.render()
         self.env.close()
 
-    def train(self, episodes, ckpt_dir, log_dir):
+    def train(self, episodes, batch_size, ckpt_dir, log_dir):
         model, optimizer, ckpt, ckpt_manager = self._init(ckpt_dir)
         summary_writer = tf.summary.create_file_writer(log_dir)
         with tqdm(total=episodes, desc="Episode", unit="episode") as pbar:
             pbar.update(ckpt.step.numpy())
             for _ in range(episodes - ckpt.step.numpy()):
                 states, actions, discounted_rewards, episode_reward = self._sample_episode(model)
-                loss = self._train_step(states, actions, discounted_rewards, model, optimizer)
+                loss = []
+                for s, a, dr in generate_batches(batch_size, [states, actions, discounted_rewards]):
+                    loss.append(self._train_step(s, a, dr, model, optimizer))
                 ckpt_manager.save()
                 with summary_writer.as_default():
                     tf.summary.scalar("reward", episode_reward, step=ckpt.step)
-                    tf.summary.scalar("loss", loss, step=ckpt.step)
+                    tf.summary.scalar("loss", np.mean(loss), step=ckpt.step)
                 ckpt.step.assign_add(1)
                 pbar.update(1)
 
@@ -148,7 +161,7 @@ if __name__ == "__main__":
     agent = Agent(learning_rate=3e-4, discount_factor=0.99)
 
     if args.mode == "train":
-        agent.train(10000, CKPT_DIR, LOG_DIR)
+        agent.train(episodes=10000, batch_size=2000, ckpt_dir=CKPT_DIR, log_dir=LOG_DIR)
 
     if args.mode == "test":
-        agent.test(CKPT_DIR)
+        agent.test(ckpt_dir=CKPT_DIR)
