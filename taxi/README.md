@@ -4,7 +4,7 @@ Taxi environment solved using tabular Q Learning.
 
 ### Usage
 
-Enter the cartpole directory
+Enter the taxi directory
 ```bash
 cd taxi
 ``` 
