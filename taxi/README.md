@@ -26,6 +26,6 @@ python run.py --mode test --ckpt_dir=checkpoints
 </p>
 
 <p align="center">
-  <img width="460" height="300" src="res/taxi.gif">
+  <img width="230" height="300" src="res/taxi.gif">
 </p>
 
