@@ -31,6 +31,6 @@ tensorboard --logdir logs
 </p>
 
 <p align="center">
-  <img width="460" height="300" src="res/pong.gif">
+  <img width="300" height="460" src="res/pong.gif">
 </p>
 
