@@ -58,7 +58,7 @@ class Agent:
         return model, optimizer, ckpt, ckpt_manager
 
     def test(self, ckpt_dir):
-        model, _, _, _, _ = self._init(ckpt_dir)
+        model, optimizer, _, _ = self._init(ckpt_dir)
         observation = self.env.reset()
         self.env.render()
         done = False
