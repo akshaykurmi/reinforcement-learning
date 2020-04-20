@@ -16,7 +16,7 @@ class Env2048(Env):
         is_move_valid, total_merged = self.board.move(action)
         reward = total_merged if is_move_valid else -2  # TODO: how much negative reward here?
         done = self.board.is_game_over()
-        info = {"score": self.board.score}
+        info = {"score": self.board.score, "max_tile": np.max(self.board.grid)}
         return self.board.grid, reward, done, info
 
     def reset(self):
@@ -25,6 +25,10 @@ class Env2048(Env):
 
     def render(self, mode="human"):
         print(self.board.draw())
+
+    @staticmethod
+    def preprocess(observation):
+        return observation / np.max(observation)
 
 
 class Board:
