@@ -1,6 +1,8 @@
 import os
 import pickle
+
 import numpy as np
+from tqdm import tqdm
 
 
 class SumTree:
@@ -62,14 +64,17 @@ class SumTree:
 
 
 class PrioritizedExperienceReplay:
-    def __init__(self, capacity, ckpt_dir):
+    def __init__(self, capacity, initial_size, epsilon, alpha, beta, beta_annealing_rate,
+                 max_td_error, ckpt_dir):
         self.tree = SumTree(capacity)
+        self.capacity = capacity
+        self.epsilon = epsilon
+        self.initial_size = initial_size
+        self.alpha = alpha
+        self.beta = beta
+        self.beta_annealing_rate = beta_annealing_rate
+        self.max_td_error = max_td_error
         self.ckpt_dir = ckpt_dir
-        self.epsilon = 0.01
-        self.alpha = 0.6
-        self.beta = 0.4
-        self.beta_annealing_rate = 0.001
-        self.max_td_error = 1.0
 
     def add(self, transition):
         max_priority = self.tree.max_priority
@@ -105,7 +110,7 @@ class PrioritizedExperienceReplay:
             self.load()
             return
         observation = env.reset()
-        for i in range(self.tree.capacity):
+        for _ in tqdm(range(self.initial_size), desc="Initializing replay memory", unit="transition"):
             state = env.preprocess(observation)
             action = env.action_space.sample()
             observation, reward, done, info = env.step(action)
