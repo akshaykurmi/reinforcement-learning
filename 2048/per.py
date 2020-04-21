@@ -109,16 +109,15 @@ class PrioritizedExperienceReplay:
         if os.path.exists(os.path.join(self.ckpt_dir, "memory.pkl")):
             self.load()
             return
-        observation = env.reset()
+        state = env.reset()
         for _ in tqdm(range(self.initial_size), desc="Initializing replay memory", unit="transition"):
-            state = env.preprocess(observation)
             action = env.action_space.sample()
-            observation, reward, done, info = env.step(action)
-            next_state = env.preprocess(observation)
+            next_state, reward, done, info = env.step(action)
             transition = (state, action, reward, next_state, done)
             self.add(transition)
+            state = next_state
             if done:
-                observation = env.reset()
+                state = env.reset()
 
     def load(self):
         with open(os.path.join(self.ckpt_dir, "memory.pkl"), "rb") as f:
