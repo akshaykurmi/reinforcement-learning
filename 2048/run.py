@@ -22,10 +22,10 @@ args.train_steps = 10
 args.batch_size = 32
 args.gamma = 0.95
 args.update_dqn_target_steps = 10000
-args.save_steps = 1
+args.save_steps = 10000
 
-args.per_capacity = 100000
-args.per_initial_size = 100000
+args.per_capacity = 10000
+args.per_initial_size = 10000
 args.per_epsilon = 0.01
 args.per_alpha = 0.6
 args.per_beta = 0.4
@@ -34,7 +34,7 @@ args.per_max_td_error = 1.0
 
 args.egp_epsilon_max = 1.0
 args.egp_epsilon_min = 0.01
-args.egp_epsilon_decay = 0.00005
+args.egp_epsilon_decay = 0.00001
 
 agent = Agent(args)
 
