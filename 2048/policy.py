@@ -14,6 +14,6 @@ class EpsilonGreedyPolicy:
             -self.epsilon_decay * tf.cast(step, tf.float32))
         if explore_probability > tf.random.uniform(shape=()):
             return tf.constant(self.env.action_space.sample(), dtype=tf.int32), explore_probability
-        state = tf.reshape(state, (1, *state.shape, -1))
+        state = tf.expand_dims(state, axis=0)
         q_preds = self.dqn(state)[0]
         return tf.argmax(q_preds, output_type=tf.int32), explore_probability
