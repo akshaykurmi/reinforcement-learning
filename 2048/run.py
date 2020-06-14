@@ -31,7 +31,7 @@ args.per_beta_annealing_rate = 0.001
 args.per_max_td_error = 1.0
 
 args.egp_epsilon_max = 1.0
-args.egp_epsilon_min = 0.05
+args.egp_epsilon_min = 0.1
 args.egp_epsilon_decay = 0.000005
 
 agent = Agent(args)

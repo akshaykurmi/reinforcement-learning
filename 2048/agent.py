@@ -41,7 +41,7 @@ class Agent:
         with tqdm(total=self.args.max_action_steps, desc="Training", unit="action") as pbar:
             pbar.update(ckpt.action_step.numpy())
             state = self.env.reset()
-            episode_reward, episode_score = 0, 0
+            episode_reward, episode_score, episode_num_actions = 0, 0, 0
             for i in range(ckpt.action_step.numpy(), self.args.max_action_steps + 1):
                 action, explore_probability = policy.take_action(state, ckpt.action_step)
                 next_state, reward, done, info = self.env.step(action.numpy())
@@ -50,14 +50,16 @@ class Agent:
                 state = next_state
                 episode_reward += reward
                 episode_score += info["score"]
+                episode_num_actions += 1
 
                 if done:
                     state = self.env.reset()
                     with summary_writer.as_default(), tf.name_scope("episode stats"):
                         tf.summary.scalar("reward", episode_reward, step=ckpt.episode_step)
+                        tf.summary.scalar("num_actions", episode_num_actions, step=ckpt.episode_step)
                         tf.summary.scalar("score", episode_score, step=ckpt.episode_step)
                         tf.summary.scalar("max_tile", info["max_tile"], step=ckpt.episode_step)
-                    episode_reward, episode_score = 0, 0
+                    episode_reward, episode_score, episode_num_actions = 0, 0, 0
                     ckpt.episode_step.assign_add(1)
 
                 if i % self.args.train_steps == 0:
