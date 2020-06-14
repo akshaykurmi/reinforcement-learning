@@ -34,7 +34,7 @@ class Env2048(Env):
         for i in range(16):
             state[i] = (state[i] == 2 ** (i + 1))
         state = np.transpose(state, axes=(1, 2, 0))
-        return state
+        return state.astype(np.float32)
 
 
 class Board:
