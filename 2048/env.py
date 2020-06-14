@@ -10,6 +10,7 @@ class Env2048(Env):
         self.reward_range = (0, 2 ** 16)
         self.action_space = Discrete(4)
         self.observation_space = Box(low=0, high=2 ** 16, shape=(4, 4), dtype=np.uint16)
+        self.state_shape = (16, 4, 4)
         self.board = Board(4, 4)
 
     def step(self, action):
@@ -28,8 +29,11 @@ class Env2048(Env):
 
     @staticmethod
     def preprocess(observation):
-        observation = np.log1p(observation)
-        return observation / np.max(observation)
+        state = np.expand_dims(observation, axis=0)
+        state = np.repeat(state, 16, axis=0)
+        for i in range(16):
+            state[i] = (state[i] == 2 ** (i + 1))
+        return state
 
 
 class Board:

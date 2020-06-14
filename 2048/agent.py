@@ -13,8 +13,8 @@ class Agent:
         self.args = args
 
     def _init(self):
-        dqn_online = DQN(input_shape=self.env.observation_space.shape, num_actions=self.env.action_space.n)
-        dqn_target = DQN(input_shape=self.env.observation_space.shape, num_actions=self.env.action_space.n)
+        dqn_online = DQN(input_shape=self.env.state_shape, num_actions=self.env.action_space.n)
+        dqn_target = DQN(input_shape=self.env.state_shape, num_actions=self.env.action_space.n)
         dqn_target.set_weights(dqn_online.get_weights())
         action_step = tf.Variable(0, dtype=tf.int64, trainable=False)
         episode_step = tf.Variable(0, dtype=tf.int64, trainable=False)

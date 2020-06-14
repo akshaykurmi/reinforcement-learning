@@ -4,16 +4,16 @@ import tensorflow as tf
 class MixtureOfConvolutions(tf.keras.layers.Layer):
     def __init__(self):
         super().__init__()
-        self.conv21 = tf.keras.layers.Conv2D(filters=32, kernel_size=(2, 1), activation="relu", padding="same")
-        self.conv12 = tf.keras.layers.Conv2D(filters=32, kernel_size=(1, 2), activation="relu", padding="same")
-        self.conv31 = tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 1), activation="relu", padding="same")
-        self.conv13 = tf.keras.layers.Conv2D(filters=32, kernel_size=(1, 3), activation="relu", padding="same")
-        self.conv41 = tf.keras.layers.Conv2D(filters=32, kernel_size=(4, 1), activation="relu", padding="same")
-        self.conv14 = tf.keras.layers.Conv2D(filters=32, kernel_size=(1, 4), activation="relu", padding="same")
-        self.conv32 = tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 2), activation="relu", padding="same")
-        self.conv23 = tf.keras.layers.Conv2D(filters=32, kernel_size=(2, 3), activation="relu", padding="same")
-        self.conv22 = tf.keras.layers.Conv2D(filters=32, kernel_size=(2, 2), activation="relu", padding="same")
-        self.conv33 = tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation="relu", padding="same")
+        self.conv21 = tf.keras.layers.Conv2D(filters=512, kernel_size=(2, 1), activation="relu", padding="same")
+        self.conv12 = tf.keras.layers.Conv2D(filters=512, kernel_size=(1, 2), activation="relu", padding="same")
+        self.conv31 = tf.keras.layers.Conv2D(filters=512, kernel_size=(3, 1), activation="relu", padding="same")
+        self.conv13 = tf.keras.layers.Conv2D(filters=512, kernel_size=(1, 3), activation="relu", padding="same")
+        self.conv41 = tf.keras.layers.Conv2D(filters=512, kernel_size=(4, 1), activation="relu", padding="same")
+        self.conv14 = tf.keras.layers.Conv2D(filters=512, kernel_size=(1, 4), activation="relu", padding="same")
+        self.conv32 = tf.keras.layers.Conv2D(filters=512, kernel_size=(3, 2), activation="relu", padding="same")
+        self.conv23 = tf.keras.layers.Conv2D(filters=512, kernel_size=(2, 3), activation="relu", padding="same")
+        self.conv22 = tf.keras.layers.Conv2D(filters=512, kernel_size=(2, 2), activation="relu", padding="same")
+        self.conv33 = tf.keras.layers.Conv2D(filters=512, kernel_size=(3, 3), activation="relu", padding="same")
 
     def call(self, inputs):
         x21 = self.conv21(inputs)
@@ -37,9 +37,9 @@ class DQN(tf.keras.Model):
         self.convmix1 = MixtureOfConvolutions()
         self.convmix2 = MixtureOfConvolutions()
         self.flatten = tf.keras.layers.Flatten()
-        self.value_fc1 = tf.keras.layers.Dense(128, activation="relu")
+        self.value_fc1 = tf.keras.layers.Dense(1024, activation="relu")
         self.value_fc2 = tf.keras.layers.Dense(1, activation="linear")
-        self.advantage_fc1 = tf.keras.layers.Dense(128, activation="relu")
+        self.advantage_fc1 = tf.keras.layers.Dense(1024, activation="relu")
         self.advantage_fc2 = tf.keras.layers.Dense(num_actions, activation="linear")
 
     def call(self, inputs):
