@@ -24,8 +24,8 @@ args.gamma = 0.95
 args.update_dqn_target_steps = 10000
 args.save_steps = 10000
 
-args.per_capacity = 10000
-args.per_initial_size = 10000
+args.per_capacity = 50000
+args.per_initial_size = 50000
 args.per_epsilon = 0.01
 args.per_alpha = 0.6
 args.per_beta = 0.4

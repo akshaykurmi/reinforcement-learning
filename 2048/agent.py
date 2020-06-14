@@ -92,9 +92,6 @@ class Agent:
     @tf.function
     def _train_step(self, states, actions, rewards, next_states, dones, importance_sampling_weights,
                     dqn_online, dqn_target, optimizer, gamma):
-        states = tf.expand_dims(states, axis=3)
-        next_states = tf.expand_dims(next_states, axis=3)
-
         batch_size = states.shape[0]
 
         q_online_next_states = dqn_online(next_states)
