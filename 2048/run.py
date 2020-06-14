@@ -6,15 +6,13 @@ from agent import Agent
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', choices=["train", "test"], required=True, help="Train or test the agent?")
-parser.add_argument('--ckpt_dir', required=True, help="Name of checkpoint directory")
-parser.add_argument('--log_dir', required=True, help="Name of log directory")
 parser.add_argument("--run_id", default="run_1", help="Run ID")
 parser.add_argument("--overwrite_results", default=False, action="store_true")
 args = parser.parse_args()
 
 args.base_dir = os.path.dirname(__file__)
-args.ckpt_dir = os.path.join(args.base_dir, args.ckpt_dir, args.run_id)
-args.log_dir = os.path.join(args.log_dir, args.log_dir, args.run_id)
+args.ckpt_dir = os.path.join(args.base_dir, "results", args.run_id, "checkpoints")
+args.log_dir = os.path.join(args.base_dir, "results", args.run_id, "logs")
 
 args.learning_rate = 0.0001
 args.max_action_steps = 10000000
