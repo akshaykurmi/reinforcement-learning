@@ -15,7 +15,7 @@ class Env2048(Env):
 
     def step(self, action):
         is_move_valid, total_merged = self.board.move(action)
-        reward = np.log1p(total_merged) if is_move_valid else -2  # TODO: how much negative reward here?
+        reward = np.log2(total_merged + 1) if is_move_valid else -2  # TODO: how much negative reward here?
         done = self.board.is_game_over()
         info = {"score": self.board.score, "max_tile": np.max(self.board.grid)}
         return self.preprocess(self.board.grid), reward, done, info

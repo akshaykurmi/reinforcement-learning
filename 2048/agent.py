@@ -105,6 +105,9 @@ class Agent:
                 tf.argmax(q_online_next_states, axis=1, output_type=tf.int32)
             ], axis=1)
         )
+        q_targets -= np.mean(q_targets)
+        q_targets /= np.std(q_targets)
+
         actions = tf.one_hot(actions, depth=self.env.action_space.n, dtype=tf.float32)
 
         with tf.GradientTape() as tape:
