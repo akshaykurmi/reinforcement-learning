@@ -6,10 +6,11 @@ from agent import Agent
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', choices=["train", "test"], required=True, help="Train or test the agent?")
-parser.add_argument("--run_id", default="run_1", help="Run ID")
+parser.add_argument("--run_id", help="Run ID", required=True)
 parser.add_argument("--overwrite_results", default=False, action="store_true")
 args = parser.parse_args()
 
+args.run_id = f"run_{args.run_id}"
 args.base_dir = os.path.dirname(__file__)
 args.ckpt_dir = os.path.join(args.base_dir, "results", args.run_id, "checkpoints")
 args.log_dir = os.path.join(args.base_dir, "results", args.run_id, "logs")

@@ -12,10 +12,11 @@ class Env2048(Env):
         self.observation_space = Box(low=0, high=2 ** 16, shape=(4, 4), dtype=np.uint16)
         self.state_shape = (4, 4, 16)
         self.board = Board(4, 4)
+        self.reward_calculator = RewardCalculator()
 
     def step(self, action):
         is_move_valid, total_merged = self.board.move(action)
-        reward = np.log2(total_merged + 1) if is_move_valid else -2  # TODO: how much negative reward here?
+        reward = self.reward_calculator.calculate_reward(self.board.grid, total_merged, is_move_valid)
         done = self.board.is_game_over()
         info = {"score": self.board.score, "max_tile": np.max(self.board.grid)}
         return self.preprocess(self.board.grid), reward, done, info
@@ -143,3 +144,78 @@ class Board:
 
     def is_game_over(self):
         return all([np.array_equal(self._move(action, self.grid)[0], self.grid) for action in self.DIRECTIONS])
+
+
+class RewardCalculator:
+    def calculate_reward(self, grid, total_merged, is_move_valid):
+        if not is_move_valid:
+            return -2
+        reward_config = [
+            {"func": self._total_tiles_merged_score, "args": [total_merged], "weight": 1.0},
+            {"func": self._large_tiles_score, "args": [grid], "weight": 1.0},
+            {"func": self._monotonicity_score, "args": [grid], "weight": 2.0},
+            {"func": self._mergeability_score, "args": [grid], "weight": 1.0},
+            {"func": self._free_tiles_score, "args": [grid], "weight": 3.0},
+            {"func": self._large_tiles_in_edges_score, "args": [grid], "weight": 0.0}
+        ]
+        return sum(map(
+            lambda x: x["weight"] * x["func"](*x["args"]),
+            reward_config
+        ))
+
+    # Incentivize large merges
+    @staticmethod
+    def _total_tiles_merged_score(total_merged):
+        score = np.log2(total_merged) if total_merged > 0 else 0  # range: [0, 16]
+        return score / 16
+
+    # Incentivize large tiles existing on the board
+    @staticmethod
+    def _large_tiles_score(grid):
+        score = np.log2(np.max(grid))  # range: [0, 16]
+        return score / 16
+
+    # Incentivize monotonically increasing/decreasing rows/columns
+    @staticmethod
+    def _monotonicity_score(grid):
+        def check_monotonicity(axis):
+            diffs = np.diff(grid, axis=axis)
+            return np.logical_or(
+                np.all(diffs <= 0, axis=axis),
+                np.all(diffs >= 0, axis=axis)
+            )
+
+        num_monotonic_rows = np.sum(check_monotonicity(1))
+        num_monotonic_columns = np.sum(check_monotonicity(0))
+        score = num_monotonic_rows + num_monotonic_columns  # range: [0, 8]
+        return score / 8
+
+    # Incentivize having adjacent tiles with same number
+    @staticmethod
+    def _mergeability_score(grid):
+        def count_possible_merges(row):
+            row = np.compress(row != 0, row)
+            i = 0
+            possible_merges = 0
+            while i + 1 < row.size:
+                if row[i] == row[i + 1]:
+                    possible_merges += 1
+                    i += 1
+                i += 1
+            return possible_merges
+
+        row_possible_merges = sum(map(count_possible_merges, grid))
+        column_possible_merges = sum(map(count_possible_merges, grid.T))
+        score = row_possible_merges + column_possible_merges  # range: [0, 16]
+        return score / 16
+
+    # Incentivize keeping tiles on the grid empty
+    @staticmethod
+    def _free_tiles_score(grid):
+        score = len(np.where(grid == 0))  # range: [0, 16]
+        return score / 16
+
+    # Incentivize large tile values in corners/edges
+    @staticmethod
+    def _large_tiles_in_edges_score(grid):
+        return 0  # TODO: is this needed given _monotonicity_score is present?
