@@ -1,19 +1,15 @@
 import numpy as np
 from colr import color
 from gym import Env
-from gym.spaces import Discrete
-
-from tqdm import tqdm
+from gym.spaces import Discrete, Box
 
 
 class Env2048(Env):
     def __init__(self):
         self.metadata = {"render.modes": ["human", "ansi"]}
-        # self.reward_range = (0, 2 ** 16)
         self.action_space = Discrete(4)
-        # self.observation_space = Box(low=0, high=2 ** 16, shape=(4, 4), dtype=np.uint16)
-        # self.state_shape = (4, 4, 16)
-        self.board = Board(4, 4)
+        self.observation_space = Box(low=0, high=2 ** 16 - 1, shape=(4,), dtype=np.uint16)
+        self.board = Board()
 
     def step(self, action):
         is_move_valid, total_merged = self.board.move(action)
@@ -29,23 +25,14 @@ class Env2048(Env):
     def render(self, mode="human"):
         print(self.board.draw())
 
-    # @staticmethod
-    # def preprocess(observation):
-    #     state = np.expand_dims(observation, axis=0)
-    #     state = np.repeat(state, 16, axis=0)
-    #     for i in range(16):
-    #         state[i] = (state[i] == 2 ** (i + 1))
-    #     state = np.transpose(state, axes=(1, 2, 0))
-    #     return state.astype(np.float32)
-
 
 class Board:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
+    def __init__(self):
+        print("Initializing board ...")
+        self.width, self.height = 4, 4
         self.score, self.state = None, None
-        self.moves_left = self.compute_move_left()
-        self.moves_right = self.compute_move_right()
+        self.moves_backward = self.compute_move_backward()
+        self.moves_forward = self.compute_move_forward()
         self.DIRECTIONS = {0: "UP", 1: "DOWN", 2: "LEFT", 3: "RIGHT"}
         self.PALETTE = {
             0: ("000000", "000000"),
@@ -105,22 +92,22 @@ class Board:
     def _move(self, action, current_state):
         def move_up(state):
             columns = self.unpack_columns(state)
-            columns, total_merged = zip(*[self.moves_right[column] for column in columns])
+            columns, total_merged = zip(*[self.moves_forward[column] for column in columns])
             return self.pack_columns(columns), np.sum(total_merged)
 
         def move_down(state):
             columns = self.unpack_columns(state)
-            columns, total_merged = zip(*[self.moves_left[column] for column in columns])
+            columns, total_merged = zip(*[self.moves_backward[column] for column in columns])
             return self.pack_columns(columns), np.sum(total_merged)
 
         def move_left(state):
             rows = self.unpack_rows(state)
-            rows, total_merged = zip(*[self.moves_left[row] for row in rows])
+            rows, total_merged = zip(*[self.moves_backward[row] for row in rows])
             return self.pack_rows(rows), np.sum(total_merged)
 
         def move_right(state):
             rows = self.unpack_rows(state)
-            rows, total_merged = zip(*[self.moves_right[row] for row in rows])
+            rows, total_merged = zip(*[self.moves_forward[row] for row in rows])
             return self.pack_rows(rows), np.sum(total_merged)
 
         moves = {"UP": move_up, "DOWN": move_down, "LEFT": move_left, "RIGHT": move_right}
@@ -162,14 +149,16 @@ class Board:
         result += "└" + ("────────┴" * self.width)[:-1] + "┘\n"
         return result
 
-    def pack_rows(self, rows):
+    @staticmethod
+    def pack_rows(rows):
         state = np.uint64(0)
         for row in map(np.uint64, rows):
             state <<= np.uint64(16)
             state |= row
         return state
 
-    def unpack_rows(self, state):
+    @staticmethod
+    def unpack_rows(state):
         rows = []
         for _ in range(4):
             mask = np.uint64(0x000000000000FFFF)
@@ -178,16 +167,18 @@ class Board:
         rows.reverse()
         return np.array(rows)
 
-    def pack_columns(self, columns):
+    @staticmethod
+    def pack_columns(columns):
         state = np.uint64(0)
         mask = np.uint64(0x000F000F000F000F)
         for column in map(np.uint64, columns):
             state <<= np.uint64(4)
             state |= ((column >> np.uint64(12)) | (column << np.uint64(8)) | (
-                        column << np.uint64(28)) | column << np.uint64(48)) & mask
+                    column << np.uint64(28)) | column << np.uint64(48)) & mask
         return state
 
-    def unpack_columns(self, state):
+    @staticmethod
+    def unpack_columns(state):
         columns = []
         mask = np.uint64(0x000F000F000F000F)
         for _ in range(4):
@@ -199,14 +190,16 @@ class Board:
         columns.reverse()
         return np.array(columns)
 
-    def pack_cells(self, cells):
+    @staticmethod
+    def pack_cells(cells):
         row = np.int16(0)
         for cell in cells:
             row <<= 4
             row |= cell
         return row
 
-    def unpack_cells(self, row_or_column):
+    @staticmethod
+    def unpack_cells(row_or_column):
         cells = []
         mask = np.uint16(0x000000000000000F)
         for _ in range(4):
@@ -215,7 +208,7 @@ class Board:
         cells.reverse()
         return np.array(cells)
 
-    def compute_move_left(self):
+    def compute_move_backward(self):
         moves = {}
         for i in range(np.iinfo(np.uint16).max):
             current = np.uint16(i)
@@ -237,7 +230,7 @@ class Board:
             moves[current] = (self.pack_cells(next_), total_merged)
         return moves
 
-    def compute_move_right(self):
+    def compute_move_forward(self):
         moves = {}
         for i in range(np.iinfo(np.uint16).max):
             current = np.uint16(i)
