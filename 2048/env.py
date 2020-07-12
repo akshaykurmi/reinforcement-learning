@@ -210,8 +210,8 @@ class Board:
 
     def compute_move_backward(self):
         moves = {}
-        for i in range(np.iinfo(np.uint16).max):
-            current = np.uint16(i)
+        for state in range(np.iinfo(np.uint16).max):
+            current = np.uint16(state)
             cells = self.unpack_cells(current)
             cells = np.compress(cells != 0, cells)
             cells = np.pad(cells, (0, 4 - cells.size + 1))
@@ -232,8 +232,8 @@ class Board:
 
     def compute_move_forward(self):
         moves = {}
-        for i in range(np.iinfo(np.uint16).max):
-            current = np.uint16(i)
+        for state in range(np.iinfo(np.uint16).max):
+            current = np.uint16(state)
             cells = self.unpack_cells(current)
             cells = np.compress(cells != 0, cells)
             cells = np.pad(cells, (4 - cells.size + 1, 0))
