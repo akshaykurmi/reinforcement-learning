@@ -33,4 +33,5 @@ class BreakoutEnv:
         frame = np.dot(frame[..., :3], [0.2989, 0.5870, 0.1140])
         frame = frame[34:194, :]
         frame = frame[::2, ::2]
+        frame = frame[:, :, None]
         return frame
