@@ -1,6 +1,6 @@
-import gym
 import numpy as np
 import tensorflow as tf
+from env import BreakoutEnv
 from model import DQN
 from per import PrioritizedExperienceReplay
 from policy import EpsilonGreedyPolicy
@@ -9,12 +9,12 @@ from tqdm import tqdm
 
 class Agent:
     def __init__(self, args):
-        self.env = gym.make("BreakoutDeterministic-v4")
+        self.env = BreakoutEnv()
         self.args = args
 
     def _init(self):
         dqn_online = DQN(input_shape=self.env.observation_space.shape, num_actions=self.env.action_space.n)
-        dqn_target = DQN(input_shape=self.env.observation_space.shape, num_actions=self.env.action_space.n)
+        dqn_target = DQN(input_shape=self.env.state_shape, num_actions=self.env.action_space.n)
         dqn_target.set_weights(dqn_online.get_weights())
         action_step = tf.Variable(0, dtype=tf.int64, trainable=False)
         episode_step = tf.Variable(0, dtype=tf.int64, trainable=False)
@@ -88,7 +88,7 @@ class Agent:
                 ckpt.action_step.assign_add(1)
                 pbar.update(1)
 
-    # @tf.function
+    @tf.function
     def _train_step(self, states, actions, rewards, next_states, dones, importance_sampling_weights,
                     dqn_online, dqn_target, optimizer, gamma):
         batch_size = states.shape[0]
